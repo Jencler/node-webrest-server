@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "Todo" ALTER COLUMN "completed" DROP NOT NULL,
+ALTER COLUMN "createdAt" DROP NOT NULL,
+ALTER COLUMN "createdAt" DROP DEFAULT;
