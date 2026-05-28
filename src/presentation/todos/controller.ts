@@ -1,7 +1,6 @@
 import { Request, Response } from "express"
-import { prisma } from "../../data/postgres"
-import { TodoCreateDto } from "../../domain/dtos/todo/todo-create.dto";
-import { TodoUpdateDto } from "../../domain/dtos/todo/todo-update.dto";
+import { TodoRepositorie } from "../../domain/repositories/todo.repositorie";
+import { TodoCreateDto, TodoUpdateDto } from "../../domain";
 
 interface Todo {
     id: string,
@@ -12,78 +11,70 @@ interface Todo {
 export class TodoController {
 
     //* DI
-    constructor() { }
-
-    private async findTodoOrFail(req: Request, res: Response): Promise<any | null> {
-        const idTodo = req.params.id as string;
-
-        if (!idTodo) {
-            res.status(400).json({ error: 'ID is required' });
-            return;
-        }
-
-        const todo = await prisma.todo.findUnique({ where: { id: idTodo } })
-        if (!todo) {
-            res.status(404).json({ error: `Todo with id ${idTodo} not found.` })
-            return null
-        }
-        return todo
-    }
+    constructor(
+        private readonly repositorie: TodoRepositorie
+    ) { }
 
     getTodos = async (req: Request, res: Response) => {
-        const allTodos = await prisma.todo.findMany();
-        res.json(allTodos)
+        try {
+            const todos = await this.repositorie.getAll()
+            return res.json(todos)
+        } catch (error) {
+            res.json({ error })
+        }
     }
 
     getTodoById = async (req: Request, res: Response) => {
-        const todo = await this.findTodoOrFail(req, res)
-        if (!todo) return
-        res.json(todo)
+        const id = req.params.id as string
+        try {
+            const todo = await this.repositorie.getById(id)
+            res.json(todo)
+
+        } catch (error) {
+            res.json({ error })
+        }
     }
 
     createTodo = async (req: Request, res: Response) => {
+        try {
 
-        const [error, createTodoDto] = TodoCreateDto.create(req.body)
-        if (error) {
-            res.status(400).json(error)
-            return
+            const [errors, todoCreateDto] = TodoCreateDto.create(req.body)
+            if (errors) {
+                return res.status(400).json({ errors })
+            }
+            const todo = await this.repositorie.create(todoCreateDto!)
+            res.json(todo)
+
+        } catch (error) {
+            res.status(400).json({ error })
         }
-
-        const todo = await prisma.todo.create({
-            data: createTodoDto!
-        })
-
-        res.status(201).json(todo);
     }
 
     updateTodo = async (req: Request, res: Response) => {
-        const todoExist = await this.findTodoOrFail(req, res)
-        if (!todoExist) return
+        const id = req.params.id as string
 
-        const [error, updateDto] = TodoUpdateDto.create(req.body)
+        try {
 
-        if (error) {
-            res.status(400).json(error)
-            return
-        }
-
-        const todo = await prisma.todo.update({
-            where: {
-                id: todoExist.id
-            },
-            data: {
-                text: updateDto?.text ?? todoExist.text,
-                completed: updateDto?.completed ?? todoExist.completed
+            const [errors, todoUpdateDto] = TodoUpdateDto.create({ ...req.body, id })
+            if (errors) {
+                return res.status(400).json({ errors })
             }
-        })
 
-        res.json(todo)
+            const todo = await this.repositorie.update(todoUpdateDto!)
+            res.json(todo)
+
+        } catch (error) {
+            res.status(400).json({ error })
+        }
     }
 
     deleteTodo = async (req: Request, res: Response) => {
-        const todoExist = await this.findTodoOrFail(req, res)
-        if (!todoExist) return
-        await prisma.todo.delete({ where: { id: todoExist.id } })
-        res.status(204).json({ message: 'Todo deleted' })
+        const id = req.params.id as string
+        try {
+            const todo = await this.repositorie.delete(id)
+            res.json(todo)
+        } catch (error) {
+            res.status(400).json({ error })
+        }
     }
 }

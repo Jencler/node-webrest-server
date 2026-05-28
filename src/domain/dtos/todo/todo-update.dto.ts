@@ -3,6 +3,7 @@
 import * as z from "zod";
 
 const todoSchema = z.object({
+    id: z.string(),
     text: z.string({ error: 'No es un texto' })
         .min(2, { error: 'Minimo 2 caracteres' })
         .trim()
@@ -14,6 +15,7 @@ const todoSchema = z.object({
 export class TodoUpdateDto {
 
     private constructor(
+        public readonly id: string,
         public readonly text?: string,
         public readonly completed?: boolean
     ) { }
@@ -25,6 +27,8 @@ export class TodoUpdateDto {
             const uniqueErrors = [...new Set(errorsMessage)]
             return [uniqueErrors, undefined]
         }
-        return [undefined, new TodoUpdateDto(result.data.text, result.data.completed)]
+
+        const { id, text, completed } = result.data
+        return [undefined, new TodoUpdateDto(id, text, completed)]
     }
 }
